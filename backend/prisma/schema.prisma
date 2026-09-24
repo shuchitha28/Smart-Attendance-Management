@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  FACULTY
+  STUDENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studentProfile Student?
+  facultyProfile Faculty?
+}
+
+model Student {
+  id           String @id @default(uuid())
+  userId       String @unique
+  rollNumber   String @unique
+  departmentId String
+  classId      String
+  sectionId    String
+
+  user       User         @relation(fields: [userId], references: [id])
+  department Department   @relation(fields: [departmentId], references: [id])
+  class      Class        @relation(fields: [classId], references: [id])
+  section    Section      @relation(fields: [sectionId], references: [id])
+  attendance Attendance[]
+}
+
+model Faculty {
+  id           String @id @default(uuid())
+  userId       String @unique
+  employeeId   String @unique
+  departmentId String
+
+  user       User         @relation(fields: [userId], references: [id])
+  department Department   @relation(fields: [departmentId], references: [id])
+  sessions   Session[]
+}
+
+model Department {
+  id   String @id @default(uuid())
+  name String
+  code String @unique
+
+  students Student[]
+  faculties Faculty[]
+  courses  Course[]
+  classes  Class[]
+}
+
+model Course {
+  id           String @id @default(uuid())
+  name         String
+  code         String @unique
+  departmentId String
+
+  department Department @relation(fields: [departmentId], references: [id])
+  sessions   Session[]
+}
+
+model Class {
+  id           String @id @default(uuid())
+  name         String
+  departmentId String
+
+  department Department @relation(fields: [departmentId], references: [id])
+  sections   Section[]
+  students   Student[]
+}
+
+model Section {
+  id      String @id @default(uuid())
+  name    String
+  classId String
+
+  class    Class     @relation(fields: [classId], references: [id])
+  students Student[]
+  sessions Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  facultyId String
+  courseId  String
+  sectionId String
+  date      DateTime
+  startTime DateTime
+  endTime   DateTime
+
+  isActive       Boolean @default(false)
+  attendanceCode String?
+
+  faculty Faculty      @relation(fields: [facultyId], references: [id])
+  course  Course       @relation(fields: [courseId], references: [id])
+  section Section      @relation(fields: [sectionId], references: [id])
+  records Attendance[]
+}
+
+model Attendance {
+  id        String           @id @default(uuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus
+
+  session Session @relation(fields: [sessionId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  correctionRequests CorrectionRequest[]
+
+  @@unique([sessionId, studentId])
+}
+
+model CorrectionRequest {
+  id              String           @id @default(uuid())
+  attendanceId    String
+  requestedStatus AttendanceStatus
+  reason          String
+  status          RequestStatus    @default(PENDING)
+  createdAt       DateTime         @default(now())
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id])
+}

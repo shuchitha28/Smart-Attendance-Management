@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
+:root.dark {
+  --bg-base:        #020617;   /* slate-950 */
+  --bg-surface:     #0f172a;   /* slate-900 */
+  --bg-elevated:    #1e293b;   /* slate-800 */
+  --bg-muted:       #334155;   /* slate-700 */
+  --border:         #1e293b;   /* slate-800 */
+  --border-muted:   #334155;   /* slate-700 */
+  --text-primary:   #f1f5f9;   /* slate-100 */
+  --text-secondary: #94a3b8;   /* slate-400 */
+  --text-muted:     #64748b;   /* slate-500 */
+  --shadow-overlay: rgba(0,0,0,0.75);
+  --input-bg:       #0f172a;
+  --modal-bg:       #0f172a;
+  --table-hover:    rgba(30,41,59,0.3);
+  --thead-bg:       rgba(30,41,59,0.6);
+}
+
+:root.light {
+  --bg-base:        #f8fafc;   /* slate-50 */
+  --bg-surface:     #ffffff;   /* white */
+  --bg-elevated:    #f1f5f9;   /* slate-100 */
+  --bg-muted:       #e2e8f0;   /* slate-200 */
+  --border:         #e2e8f0;   /* slate-200 */
+  --border-muted:   #cbd5e1;   /* slate-300 */
+  --text-primary:   #0f172a;   /* slate-900 */
+  --text-secondary: #475569;   /* slate-600 */
+  --text-muted:     #64748b;   /* slate-500 */
+  --shadow-overlay: rgba(15,23,42,0.5);
+  --input-bg:       #f8fafc;
+  --modal-bg:       #ffffff;
+  --table-hover:    rgba(241,245,249,0.8);
+  --thead-bg:       rgba(241,245,249,0.9);
+}
+
+/* ─── Default to dark ────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+}
+:root.light {
+  color-scheme: light;
+}
+
+/* ─── Base Reset ─────────────────────────────────────────────────────────── */
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Native select/input styling for both themes */
+  select, input, textarea {
+    color: var(--text-primary);
+    background-color: var(--bg-elevated);
+    border-color: var(--border);
+    transition: background-color 0.25s ease, border-color 0.2s ease, color 0.25s ease;
+  }
+
+  select option {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  * {
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.2s;
+    transition-timing-function: ease;
+  }
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-muted); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Theme-aware utility classes ───────────────────────────────────────── */
+.ams-page       { background-color: var(--bg-base); color: var(--text-primary); }
+.ams-sidebar    { background-color: var(--bg-surface); border-color: var(--border); }
+.ams-card       { background-color: var(--bg-surface); border-color: var(--border); }
+.ams-card-inner { background-color: var(--bg-elevated); border-color: var(--border-muted); }
+.ams-input      { background-color: var(--input-bg); border-color: var(--border); color: var(--text-primary); }
+.ams-modal      { background-color: var(--modal-bg); border-color: var(--border); }
+.ams-thead      { background-color: var(--thead-bg); color: var(--text-secondary); }
+.ams-tr-hover:hover { background-color: var(--table-hover); }
+.ams-divider    { border-color: var(--border); }
+.ams-text       { color: var(--text-primary); }
+.ams-text-secondary { color: var(--text-secondary); }
+.ams-text-muted { color: var(--text-muted); }
