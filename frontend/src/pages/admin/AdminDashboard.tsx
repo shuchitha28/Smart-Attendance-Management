@@ -4,7 +4,7 @@ import {
   Users, BookOpen, CheckCircle, XCircle, Clock, AlertTriangle,
   LayoutDashboard, FileText, LogOut,
   Building2, ClipboardList, Plus, Search, Download, Check, X, Shield,
-  Layers, AlertCircle, BarChart3
+  Layers, AlertCircle, BarChart3, GraduationCap
 } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
@@ -87,6 +87,8 @@ const AdminDashboard: React.FC = () => {
   
   // Categorization filters
   const [studentDeptFilter, setStudentDeptFilter] = useState('ALL');
+  const [studentBatchFilter, setStudentBatchFilter] = useState('ALL');
+  const [studentSecFilter, setStudentSecFilter] = useState('ALL');
   const [facultyDeptFilter, setFacultyDeptFilter] = useState('ALL');
   const [correctionStatusFilter, setCorrectionStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [lowSeverityFilter, setLowSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING'>('ALL');
@@ -389,8 +391,10 @@ const AdminDashboard: React.FC = () => {
     const matchesSearch = s.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           s.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           s.user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDept = studentDeptFilter === 'ALL' || s.department?.name === studentDeptFilter;
-    return matchesSearch && matchesDept;
+    const matchesDept = studentDeptFilter === 'ALL' || (s.department?.name && s.department.name.includes(studentDeptFilter)) || (s.department?.code === studentDeptFilter);
+    const matchesBatch = studentBatchFilter === 'ALL' || (s.class?.name && s.class.name.includes(studentBatchFilter)) || (s.rollNumber && s.rollNumber.includes(studentBatchFilter));
+    const matchesSec = studentSecFilter === 'ALL' || (s.section?.name && s.section.name.includes(studentSecFilter));
+    return matchesSearch && matchesDept && matchesBatch && matchesSec;
   });
 
   // Categorized faculty filtering
@@ -899,17 +903,53 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Categorization & Filters */}
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className={`absolute left-3.5 top-3 w-4 h-4 ${textSecondary}`} />
-                  <input
-                    type="text"
-                    placeholder="Search by student name, roll number, or email..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm border ${inputCls}`}
-                  />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className={`absolute left-3.5 top-3 w-4 h-4 ${textSecondary}`} />
+                    <input
+                      type="text"
+                      placeholder="Search by student name, roll number, or email..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm border ${inputCls}`}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Batch Year Select */}
+                    <div className="flex items-center space-x-1">
+                      <GraduationCap className={`w-3.5 h-3.5 ${textSecondary}`} />
+                      <select
+                        value={studentBatchFilter}
+                        onChange={e => setStudentBatchFilter(e.target.value)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
+                      >
+                        <option value="ALL">All Batches / Years</option>
+                        <option value="2025">1st Year (Batch 2025)</option>
+                        <option value="2024">2nd Year (Batch 2024)</option>
+                        <option value="2023">3rd Year (Batch 2023)</option>
+                        <option value="2022">4th Year (Batch 2022)</option>
+                        <option value="2021">M.Tech / PG (Batch 2021)</option>
+                      </select>
+                    </div>
+
+                    {/* Section Select */}
+                    <div className="flex items-center space-x-1">
+                      <Layers className={`w-3.5 h-3.5 ${textSecondary}`} />
+                      <select
+                        value={studentSecFilter}
+                        onChange={e => setStudentSecFilter(e.target.value)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
+                      >
+                        <option value="ALL">All Sections</option>
+                        <option value="Section A">Section A</option>
+                        <option value="Section B">Section B</option>
+                        <option value="Section C">Section C</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
+
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   <button
                     onClick={() => setStudentDeptFilter('ALL')}

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle, AlertTriangle, LogOut,
-  LayoutDashboard, ClipboardList, Users, BookOpen, X, Plus, Search, Check, Download, Calendar, Clock
+  LayoutDashboard, ClipboardList, Users, BookOpen, X, Plus, Search, Check, Download, Calendar, Clock,
+  Filter, Layers, GraduationCap, Building2
 } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
@@ -12,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../components/ThemeToggle';
 import EarlyWarningAnalytics from './EarlyWarningAnalytics';
 import { exportToPDF, exportToExcel } from '../../utils/exportUtils';
+import AnimatedBackground from '../../components/AnimatedBackground';
 
 interface Session {
   id: string;
@@ -26,7 +28,7 @@ interface Student {
   id: string;
   rollNumber: string;
   user: { name: string; email: string };
-  department?: { name: string };
+  department?: { name: string; code?: string };
 }
 
 interface LowStudent {
@@ -75,6 +77,10 @@ const FacultyDashboard: React.FC = () => {
   const [corrections, setCorrections] = useState<CorrectionReq[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [deptFilter, setDeptFilter] = useState('ALL');
+  const [batchFilter, setBatchFilter] = useState('ALL');
+  const [secFilter, setSecFilter] = useState('ALL');
+
   // New Session Creation Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -96,30 +102,30 @@ const FacultyDashboard: React.FC = () => {
   const auth = { headers: { Authorization: `Bearer ${token}` } };
 
   // ─── Theme-aware class helpers ──────────────────────────
-  const page = isDark ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900';
-  const sidebar = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200';
-  const card = isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-gray-200 shadow-sm';
-  const cardInner = isDark ? 'bg-slate-800/60 border-slate-700/70' : 'bg-gray-50 border-gray-200';
-  const thead = isDark ? 'bg-slate-800/60 text-slate-400' : 'bg-gray-50 text-gray-500';
-  const trHover = isDark ? 'hover:bg-slate-800/30' : 'hover:bg-gray-50';
-  const divider = isDark ? 'border-slate-800' : 'border-gray-200';
+  const page = isDark ? 'bg-slate-950 text-slate-100 relative overflow-hidden' : 'bg-slate-50 text-slate-900 relative overflow-hidden';
+  const sidebar = isDark ? 'bg-slate-900/90 backdrop-blur-xl border-slate-800/80 shadow-2xl z-10' : 'bg-white/95 backdrop-blur-xl border-slate-200/80 shadow-xl z-10';
+  const card = isDark ? 'bg-slate-900/80 backdrop-blur-xl border-slate-800/80 shadow-xl hover:border-purple-500/40 transition-all duration-300' : 'bg-white/90 backdrop-blur-xl border-slate-200/80 shadow-md hover:border-purple-400 transition-all duration-300';
+  const cardInner = isDark ? 'bg-slate-800/50 border-slate-700/60' : 'bg-slate-100/70 border-slate-200';
+  const thead = isDark ? 'bg-slate-800/80 text-purple-300' : 'bg-slate-100 text-slate-700';
+  const trHover = isDark ? 'hover:bg-purple-950/20' : 'hover:bg-purple-50/50';
+  const divider = isDark ? 'border-slate-800/80' : 'border-slate-200';
   const inputCls = isDark
-    ? 'bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-purple-500'
-    : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-purple-500';
+    ? 'bg-slate-900/90 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-purple-500'
+    : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-purple-500';
   const selectCls = isDark
-    ? 'bg-slate-800 border-slate-700 text-slate-100'
-    : 'bg-white border-gray-300 text-gray-900';
-  const textPrimary = isDark ? 'text-slate-100' : 'text-gray-900';
-  const textSecondary = isDark ? 'text-slate-400' : 'text-gray-500';
-  const textMuted = isDark ? 'text-slate-500' : 'text-gray-400';
-  const modalBg = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-gray-200';
-  const overlayBg = isDark ? 'bg-black/75' : 'bg-black/40';
+    ? 'bg-slate-900/90 border-slate-800 text-slate-100'
+    : 'bg-white border-slate-300 text-slate-900';
+  const textPrimary = isDark ? 'text-slate-100' : 'text-slate-900';
+  const textSecondary = isDark ? 'text-slate-400' : 'text-slate-500';
+  const textMuted = isDark ? 'text-slate-500' : 'text-slate-400';
+  const modalBg = isDark ? 'bg-slate-900/95 backdrop-blur-2xl border-purple-500/20 shadow-2xl' : 'bg-white/95 backdrop-blur-2xl border-purple-100 shadow-2xl';
+  const overlayBg = isDark ? 'bg-slate-950/80' : 'bg-slate-900/50';
   const navActive = isDark
-    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-500/10'
-    : 'bg-purple-50 text-purple-700 border border-purple-200 shadow-sm';
+    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold shadow-lg shadow-purple-600/30'
+    : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold shadow-md';
   const navInactive = isDark
     ? 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
-    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900';
+    : 'text-slate-600 hover:bg-slate-200/60 hover:text-slate-900';
 
   useEffect(() => {
     fetchSessions();
@@ -287,16 +293,39 @@ const FacultyDashboard: React.FC = () => {
     }
   };
 
-  const filteredAllStudents = allStudents.filter(s =>
-    s.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase())
+  // ─── Organization Filters (Dept, Batch, Section) ────────
+  const matchesOrgFilter = (deptName?: string, className?: string, sectionName?: string, rollNumber?: string) => {
+    const matchesDept = deptFilter === 'ALL' || (deptName && deptName.toLowerCase().includes(deptFilter.toLowerCase()));
+    const matchesBatch = batchFilter === 'ALL' || (className && className.includes(batchFilter)) || (rollNumber && rollNumber.includes(batchFilter));
+    const matchesSec = secFilter === 'ALL' || (sectionName && sectionName.toLowerCase().includes(secFilter.toLowerCase()));
+    return matchesDept && matchesBatch && matchesSec;
+  };
+
+  const filteredAllStudents = allStudents.filter(s => {
+    const matchesSearch = s.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          s.rollNumber?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesOrg = matchesOrgFilter(
+      s.department?.name,
+      (s as any).class?.name,
+      (s as any).section?.name,
+      s.rollNumber
+    );
+    return matchesSearch && matchesOrg;
+  });
+
+  const filteredSessions = sessions.filter(s =>
+    matchesOrgFilter(undefined, s.section?.class?.name, s.section?.name, undefined)
+  );
+
+  const filteredLowStudents = lowStudents.filter(s =>
+    matchesOrgFilter(s.department, s.className, (s as any).sectionName, s.rollNumber)
   );
 
   // ─── Categorization helpers ─────────────────────────────
   const today = new Date().toDateString();
-  const activeSessions = sessions.filter(s => s.isActive);
-  const todaySessions = sessions.filter(s => !s.isActive && new Date(s.date).toDateString() === today);
-  const olderSessions = sessions.filter(s => !s.isActive && new Date(s.date).toDateString() !== today);
+  const activeSessions = filteredSessions.filter(s => s.isActive);
+  const todaySessions = filteredSessions.filter(s => !s.isActive && new Date(s.date).toDateString() === today);
+  const olderSessions = filteredSessions.filter(s => !s.isActive && new Date(s.date).toDateString() !== today);
 
   // Categorize sessions by course
   const sessionsByCourse: Record<string, Session[]> = {};
@@ -315,13 +344,95 @@ const FacultyDashboard: React.FC = () => {
   });
 
   // Categorize low attendance by severity
-  const criticalLow = lowStudents.filter(s => s.percentage < 50);
-  const warningLow = lowStudents.filter(s => s.percentage >= 50 && s.percentage < 65);
-  const cautionLow = lowStudents.filter(s => s.percentage >= 65 && s.percentage < 75);
+  const criticalLow = filteredLowStudents.filter(s => s.percentage < 50);
+  const warningLow = filteredLowStudents.filter(s => s.percentage >= 50 && s.percentage < 65);
+  const cautionLow = filteredLowStudents.filter(s => s.percentage >= 65 && s.percentage < 75);
 
   // Categorize corrections by status
   const pendingCorrections = corrections.filter(c => c.status === 'PENDING');
   const resolvedCorrections = corrections.filter(c => c.status !== 'PENDING');
+
+  // ─── Organization Filter Bar Component ───────────────────
+  const OrgFilterBar = () => (
+    <div className={`p-4 rounded-2xl border mb-6 flex flex-wrap items-center justify-between gap-4 transition-all ${
+      isDark ? 'bg-slate-900/80 backdrop-blur-xl border-purple-500/30 shadow-lg shadow-purple-950/20' : 'bg-white/90 backdrop-blur-xl border-purple-200 shadow-md'
+    }`}>
+      <div className="flex items-center space-x-2">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md">
+          <Filter className="w-4 h-4" />
+        </div>
+        <div>
+          <h4 className={`text-xs font-extrabold uppercase tracking-wider ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+            Organize & Filter Roster
+          </h4>
+          <p className={`text-[11px] ${textMuted}`}>Department • Batch Year • Section</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Department Filter */}
+        <div className="flex items-center space-x-1.5">
+          <Building2 className={`w-3.5 h-3.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+          <select
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
+          >
+            <option value="ALL">All Departments</option>
+            <option value="CSE">Computer Science (CSE)</option>
+            <option value="IT">Information Tech (IT)</option>
+            <option value="AIDS">AI & Data Science (AIDS)</option>
+            <option value="ECE">Electronics (ECE)</option>
+            <option value="EEE">Electrical (EEE)</option>
+            <option value="MECH">Mechanical (MECH)</option>
+            <option value="CIVIL">Civil (CIVIL)</option>
+            <option value="CYBER">Cyber Security (CYBER)</option>
+          </select>
+        </div>
+
+        {/* Batch / Year Filter */}
+        <div className="flex items-center space-x-1.5">
+          <GraduationCap className={`w-3.5 h-3.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+          <select
+            value={batchFilter}
+            onChange={e => setBatchFilter(e.target.value)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
+          >
+            <option value="ALL">All Batches / Years</option>
+            <option value="2025">1st Year (Batch 2025)</option>
+            <option value="2024">2nd Year (Batch 2024)</option>
+            <option value="2023">3rd Year (Batch 2023)</option>
+            <option value="2022">4th Year (Batch 2022)</option>
+            <option value="2021">M.Tech / PG (Batch 2021)</option>
+          </select>
+        </div>
+
+        {/* Section Filter */}
+        <div className="flex items-center space-x-1.5">
+          <Layers className={`w-3.5 h-3.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+          <select
+            value={secFilter}
+            onChange={e => setSecFilter(e.target.value)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
+          >
+            <option value="ALL">All Sections</option>
+            <option value="Section A">Section A</option>
+            <option value="Section B">Section B</option>
+            <option value="Section C">Section C</option>
+          </select>
+        </div>
+
+        {(deptFilter !== 'ALL' || batchFilter !== 'ALL' || secFilter !== 'ALL') && (
+          <button
+            onClick={() => { setDeptFilter('ALL'); setBatchFilter('ALL'); setSecFilter('ALL'); }}
+            className="px-2.5 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   // ─── Session Card ──────────────────────────────────────
   const SessionCard = ({ s }: { s: Session }) => (
@@ -455,13 +566,14 @@ const FacultyDashboard: React.FC = () => {
 
   return (
     <>
-      <div className={`min-h-screen ${page} flex flex-col md:flex-row`}>
+      <AnimatedBackground />
+      <div className={`min-h-screen ${page} flex flex-col md:flex-row z-10 relative`}>
       {/* Sidebar */}
       <aside className={`w-full md:w-64 ${sidebar} border-r p-6 flex flex-col justify-between`}>
         <div>
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/20">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-purple-500/30">
                 <BookOpen className="w-6 h-6" />
               </div>
               <div>
@@ -486,7 +598,7 @@ const FacultyDashboard: React.FC = () => {
                   <span>{item.label}</span>
                 </div>
                 {item.id === 'low' && lowStudents.length > 0 && (
-                  <span className="text-xs bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-rose-500 text-white font-bold px-2 py-0.5 rounded-full shadow-sm">
                     {lowStudents.length}
                   </span>
                 )}
@@ -498,7 +610,7 @@ const FacultyDashboard: React.FC = () => {
         {/* Faculty User Info */}
         <div className={`pt-6 border-t ${divider} mt-6`}>
           <div className="flex items-center space-x-3 mb-4">
-            <div className={`w-10 h-10 rounded-full ${isDark ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'bg-purple-100 border-purple-200 text-purple-600'} border flex items-center justify-center font-bold`}>
+            <div className={`w-10 h-10 rounded-full ${isDark ? 'bg-gradient-to-tr from-purple-600 to-cyan-600 text-white' : 'bg-purple-600 text-white'} flex items-center justify-center font-bold shadow-md`}>
               {user?.name?.charAt(0) || 'F'}
             </div>
             <div className="overflow-hidden">
@@ -532,11 +644,13 @@ const FacultyDashboard: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold transition flex items-center space-x-2 shadow-lg shadow-purple-600/30"
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-bold transition flex items-center space-x-2 shadow-lg shadow-purple-600/30"
                 >
                   <Plus className="w-4 h-4" /> <span>Create New Session</span>
                 </button>
               </div>
+
+              <OrgFilterBar />
 
               {sessions.length === 0 ? (
                 <div className={`${card} rounded-2xl p-16 text-center`}>
@@ -753,8 +867,10 @@ const FacultyDashboard: React.FC = () => {
             <motion.div key="students" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div>
                 <h1 className={`text-2xl font-extrabold ${textPrimary}`}>Student Directory</h1>
-                <p className={`${textSecondary} text-xs`}>Search through all enrolled students across your department</p>
+                <p className={`${textSecondary} text-xs`}>Organized student directory with department, batch year, and section breakdown</p>
               </div>
+
+              <OrgFilterBar />
 
               <div className="relative">
                 <Search className={`absolute left-3.5 top-3 w-4 h-4 ${textMuted}`} />
@@ -771,10 +887,11 @@ const FacultyDashboard: React.FC = () => {
                 <div className={`${card} rounded-2xl p-16 text-center`}>
                   <Users className={`w-12 h-12 mx-auto mb-3 ${textMuted}`} />
                   <h3 className={`font-bold text-lg ${textPrimary}`}>No Students Found</h3>
+                  <p className={`text-xs ${textSecondary} mt-1`}>Try clearing your search query or adjusting your filters.</p>
                 </div>
               ) : (
                 Object.entries(studentsByDept).map(([dept, deptStudents]) => (
-                  <div key={dept} className="mb-4">
+                  <div key={dept} className="mb-6">
                     <div className={`flex items-center gap-2 mb-3 border-b ${divider} pb-2`}>
                       <BookOpen className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
                       <h3 className={`text-sm font-bold uppercase tracking-wider ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>{dept}</h3>
@@ -788,7 +905,7 @@ const FacultyDashboard: React.FC = () => {
                               <th className="p-4">Roll Number</th>
                               <th className="p-4">Student</th>
                               <th className="p-4">Department</th>
-                              <th className="p-4">Class & Section</th>
+                              <th className="p-4">Batch & Section</th>
                             </tr>
                           </thead>
                           <tbody className={`divide-y ${divider}`}>
@@ -799,9 +916,20 @@ const FacultyDashboard: React.FC = () => {
                                   <p className={`font-semibold ${textPrimary}`}>{s.user?.name}</p>
                                   <p className={`text-xs ${textSecondary}`}>{s.user?.email}</p>
                                 </td>
-                                <td className={`p-4 ${isDark ? 'text-slate-300' : 'text-gray-600'} text-xs`}>{s.department?.name}</td>
-                                <td className={`p-4 ${isDark ? 'text-slate-300' : 'text-gray-600'} text-xs`}>
-                                  {(s as any).class?.name} • Sec {(s as any).section?.name}
+                                <td className="p-4">
+                                  <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 rounded-lg text-xs font-semibold border border-purple-500/20">
+                                    {s.department?.name || 'Department'}
+                                  </span>
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex items-center space-x-2">
+                                    <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-md text-xs font-medium border border-cyan-500/20">
+                                      {(s as any).class?.name || 'Class N/A'}
+                                    </span>
+                                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md text-xs font-medium border border-emerald-500/20">
+                                      Sec {(s as any).section?.name || 'A'}
+                                    </span>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -822,6 +950,8 @@ const FacultyDashboard: React.FC = () => {
                 <h1 className={`text-2xl font-extrabold ${isDark ? 'text-rose-400' : 'text-rose-600'}`}>⚠️ Low Attendance Watchlist (&lt;75%)</h1>
                 <p className={`${textSecondary} text-xs`}>Students falling behind the required attendance percentage</p>
               </div>
+
+              <OrgFilterBar />
 
               {lowStudents.length === 0 ? (
                 <div className={`${card} rounded-2xl p-16 text-center`}>
