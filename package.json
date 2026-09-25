@@ -1,0 +1,10 @@
+{
+  "name": "smart-attendance-management",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix backend run build",
+    "start": "npm --prefix backend run start",
+    "postinstall": "npm --prefix backend install"
+  }
+}
