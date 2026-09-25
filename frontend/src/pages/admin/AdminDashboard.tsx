@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, BookOpen, CheckCircle, XCircle, Clock, AlertTriangle,
+  Users, BookOpen, CheckCircle, AlertTriangle,
   LayoutDashboard, FileText, LogOut,
   Building2, ClipboardList, Plus, Search, Download, Check, X, Shield,
   Layers, AlertCircle, BarChart3, GraduationCap
@@ -13,6 +13,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../components/ThemeToggle';
 import { exportToPDF, exportToExcel } from '../../utils/exportUtils';
+import Pagination from '../../components/Pagination';
+import OverviewTab from './tabs/OverviewTab';
+import DepartmentsTab from './tabs/DepartmentsTab';
 
 interface Stats {
   totalStudents: number;
@@ -93,6 +96,19 @@ const AdminDashboard: React.FC = () => {
   const [correctionStatusFilter, setCorrectionStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
   const [lowSeverityFilter, setLowSeverityFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING'>('ALL');
 
+  // Pagination state — per table
+  const PAGE_SIZE_STUDENTS = 25;
+  const PAGE_SIZE_FACULTY = 20;
+  const PAGE_SIZE_LOW = 25;
+  const PAGE_SIZE_CORRECTIONS = 10;
+  const PAGE_SIZE_REPORT = 25;
+
+  const [studentPage, setStudentPage] = useState(1);
+  const [facultyPage, setFacultyPage] = useState(1);
+  const [lowPage, setLowPage] = useState(1);
+  const [correctionPage, setCorrectionPage] = useState(1);
+  const [reportPage, setReportPage] = useState(1);
+
   // Reports tab state
   const [reportType, setReportType] = useState<'attendance' | 'students' | 'defaulters' | 'faculty'>('attendance');
   const [reportSearch, setReportSearch] = useState('');
@@ -135,6 +151,8 @@ const AdminDashboard: React.FC = () => {
   const textSecondary = isDark ? 'text-slate-400' : 'text-gray-500';
   const modalBg = isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-gray-200 text-gray-900';
   const overlayBg = isDark ? 'bg-black/75' : 'bg-black/40';
+
+  const themeClasses = { page, sidebar, card, cardInner, thead, trHover, divider, inputCls, selectCls, textPrimary, textSecondary, modalBg, overlayBg, isDark };
 
   useEffect(() => {
     fetchStats();
@@ -371,20 +389,6 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Categorized Directory Metrics
-  const academicStatCards = [
-    { label: 'Total Enrolled Students', value: stats?.totalStudents ?? '—', icon: Users, gradient: 'from-blue-500 to-indigo-600', note: 'Active across all branches' },
-    { label: 'Faculty Members', value: stats?.totalFaculty ?? '—', icon: BookOpen, gradient: 'from-purple-500 to-violet-600', note: 'Instructors & lecturers' },
-    { label: 'Academic Departments', value: stats?.totalDepartments ?? '—', icon: Building2, gradient: 'from-amber-500 to-orange-600', note: 'Accredited branches' },
-  ];
-
-  // Categorized Attendance Metrics
-  const attendanceStatCards = [
-    { label: 'Total Sessions Recorded', value: stats?.totalSessions ?? '—', icon: Clock, gradient: 'from-cyan-500 to-blue-600', note: 'Aggregate term lectures' },
-    { label: 'Present Today', value: stats?.presentToday ?? '—', icon: CheckCircle, gradient: 'from-emerald-500 to-teal-600', note: 'Attended live sessions' },
-    { label: 'Absent Today', value: stats?.absentToday ?? '—', icon: XCircle, gradient: 'from-rose-500 to-red-600', note: 'Unexcused absences' },
-  ];
-
   // Categorized student filtering
   const studentDepartments = Array.from(new Set(students.map(s => s.department?.name).filter(Boolean)));
   const filteredStudents = students.filter(s => {
@@ -396,6 +400,7 @@ const AdminDashboard: React.FC = () => {
     const matchesSec = studentSecFilter === 'ALL' || (s.section?.name && s.section.name.includes(studentSecFilter));
     return matchesSearch && matchesDept && matchesBatch && matchesSec;
   });
+  const pagedStudents = filteredStudents.slice((studentPage - 1) * PAGE_SIZE_STUDENTS, studentPage * PAGE_SIZE_STUDENTS);
 
   // Categorized faculty filtering
   const facultyDepartments = Array.from(new Set(facultyList.map(f => f.department?.name).filter(Boolean)));
@@ -406,6 +411,7 @@ const AdminDashboard: React.FC = () => {
     const matchesDept = facultyDeptFilter === 'ALL' || f.department?.name === facultyDeptFilter;
     return matchesSearch && matchesDept;
   });
+  const pagedFaculty = filteredFaculty.slice((facultyPage - 1) * PAGE_SIZE_FACULTY, facultyPage * PAGE_SIZE_FACULTY);
 
   // Categorized low attendance filtering
   const criticalDefaulters = lowStudents.filter(s => s.percentage < 60);
@@ -415,6 +421,7 @@ const AdminDashboard: React.FC = () => {
     if (lowSeverityFilter === 'WARNING') return s.percentage >= 60 && s.percentage < 75;
     return true;
   });
+  const pagedLowStudents = filteredLowStudents.slice((lowPage - 1) * PAGE_SIZE_LOW, lowPage * PAGE_SIZE_LOW);
 
   // Categorized correction requests filtering
   const pendingCorrectionsCount = corrections.filter(c => c.status === 'PENDING').length;
@@ -425,6 +432,7 @@ const AdminDashboard: React.FC = () => {
     if (correctionStatusFilter === 'ALL') return true;
     return c.status === correctionStatusFilter;
   });
+  const pagedCorrections = filteredCorrections.slice((correctionPage - 1) * PAGE_SIZE_CORRECTIONS, correctionPage * PAGE_SIZE_CORRECTIONS);
 
   // Categorized report data filtering for the Live Report Table
   const filteredReportAudit = auditData.filter(item => {
@@ -458,6 +466,15 @@ const AdminDashboard: React.FC = () => {
     const matchesDept = reportDeptFilter === 'ALL' || f.department?.name === reportDeptFilter;
     return matchesSearch && matchesDept;
   });
+
+  // Paged report data
+  const pagedReportAudit = filteredReportAudit.slice((reportPage - 1) * PAGE_SIZE_REPORT, reportPage * PAGE_SIZE_REPORT);
+  const pagedReportStudents = filteredReportStudents.slice((reportPage - 1) * PAGE_SIZE_REPORT, reportPage * PAGE_SIZE_REPORT);
+  const pagedReportDefaulters = filteredReportDefaulters.slice((reportPage - 1) * PAGE_SIZE_REPORT, reportPage * PAGE_SIZE_REPORT);
+  const pagedReportFaculty = filteredReportFaculty.slice((reportPage - 1) * PAGE_SIZE_REPORT, reportPage * PAGE_SIZE_REPORT);
+
+  // Reset pages when filters change
+  // (using inline reset on setXxxFilter calls in JSX)
 
 
   const ExportDropdown = ({ onExport, label = "Export", icon: Icon = Download, color = "cyan", primary = false, fullWidth = false }: any) => {
@@ -578,218 +595,18 @@ const AdminDashboard: React.FC = () => {
         <AnimatePresence mode="wait">
           {/* TAB 1: OVERVIEW */}
           {tab === 'dashboard' && (
-            <motion.div key="dash" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-500 border border-amber-500/30 mb-2">
-                    CAMPUS ADMINISTRATION
-                  </span>
-                  <h1 className={`text-3xl font-extrabold tracking-tight ${textPrimary}`}>Institutional Overview</h1>
-                  <p className={`${textSecondary} text-sm mt-1`}>Categorized operational metrics and live attendance performance.</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setTab('reports')}
-                    className={`px-4 py-2 rounded-xl border ${cardInner} ${textPrimary} text-xs font-bold transition flex items-center gap-2`}
-                  >
-                    <FileText className="w-4 h-4 text-amber-500" />
-                    <span>Audit Reports</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Categorized Metric Set 1: Campus Directory */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4 text-amber-500" />
-                  <h2 className={`text-sm font-bold uppercase tracking-wider ${textSecondary}`}>Category 1: Academic Directory Metrics</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {academicStatCards.map((c, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.05 }}
-                      className={`${card} border rounded-2xl p-6 transition-all duration-200`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>{c.label}</p>
-                          <h3 className={`text-3xl font-extrabold mt-2 ${textPrimary}`}>{c.value}</h3>
-                          <p className={`text-xs mt-2 ${textSecondary}`}>{c.note}</p>
-                        </div>
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${c.gradient} flex items-center justify-center text-white shadow-lg`}>
-                          <c.icon className="w-6 h-6" />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Categorized Metric Set 2: Daily Attendance Live Feed */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="w-4 h-4 text-cyan-500" />
-                  <h2 className={`text-sm font-bold uppercase tracking-wider ${textSecondary}`}>Category 2: Live Daily Attendance Tracking</h2>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {attendanceStatCards.map((c, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.15 + i * 0.05 }}
-                      className={`${card} border rounded-2xl p-6 transition-all duration-200`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>{c.label}</p>
-                          <h3 className={`text-3xl font-extrabold mt-2 ${textPrimary}`}>{c.value}</h3>
-                          <p className={`text-xs mt-2 ${textSecondary}`}>{c.note}</p>
-                        </div>
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${c.gradient} flex items-center justify-center text-white shadow-lg`}>
-                          <c.icon className="w-6 h-6" />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quick Action Navigation Hub */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Layers className="w-4 h-4 text-purple-500" />
-                  <h2 className={`text-sm font-bold uppercase tracking-wider ${textSecondary}`}>Category 3: System Management Modules</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className={`${card} border p-6 rounded-2xl hover:border-purple-500/40 transition-all`}>
-                    <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center mb-4">
-                      <BookOpen className="w-5 h-5" />
-                    </div>
-                    <h3 className={`font-bold text-lg mb-1 ${textPrimary}`}>Faculty Directory</h3>
-                    <p className={`text-xs ${textSecondary} mb-5`}>Assign lecturers, monitor active courses, and review sessions held across terms.</p>
-                    <button onClick={() => setTab('faculty')} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition">
-                      View Faculty Directory →
-                    </button>
-                  </div>
-
-                  <div className={`${card} border p-6 rounded-2xl hover:border-amber-500/40 transition-all`}>
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-4">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <h3 className={`font-bold text-lg mb-1 ${textPrimary}`}>Department & Branch Tree</h3>
-                    <p className={`text-xs ${textSecondary} mb-5`}>Organize academic departments, course curricula, year sections, and class groups.</p>
-                    <button onClick={() => setTab('departments')} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition">
-                      Manage Structure →
-                    </button>
-                  </div>
-
-                  <div className={`${card} border p-6 rounded-2xl hover:border-rose-500/40 transition-all`}>
-                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center mb-4">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                    <h3 className={`font-bold text-lg mb-1 ${textPrimary}`}>Low Attendance Defaulters</h3>
-                    <p className={`text-xs ${textSecondary} mb-5`}>Categorized audit of students below institutional 75% cutoff with export options.</p>
-                    <button onClick={() => setTab('low')} className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition">
-                      Review Defaulters →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <OverviewTab stats={stats} setTab={setTab} theme={themeClasses} />
           )}
 
           {/* TAB 2: DEPARTMENTS & CLASSES */}
           {tab === 'departments' && (
-            <motion.div key="depts" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h1 className={`text-2xl font-extrabold ${textPrimary}`}>Academic Departments & Structure</h1>
-                  <p className={`${textSecondary} text-xs mt-1`}>Hierarchical catalog of departments, academic years, sections, and courses</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => { setFormMsg({ text: '', isError: false }); setShowAddDeptModal(true); }}
-                    className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-lg shadow-amber-600/20"
-                  >
-                    <Plus className="w-4 h-4" /> <span>Add Department</span>
-                  </button>
-                  <button
-                    onClick={() => { setFormMsg({ text: '', isError: false }); setShowAddCourseModal(true); }}
-                    className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition flex items-center space-x-1.5 shadow-lg shadow-purple-600/20"
-                  >
-                    <Plus className="w-4 h-4" /> <span>Add Course</span>
-                  </button>
-                </div>
-              </div>
-
-              {departmentsTree.length === 0 ? (
-                <div className={`${card} border rounded-2xl p-12 text-center`}>
-                  <Building2 className={`w-10 h-10 mx-auto mb-2 opacity-40 text-amber-500`} />
-                  <p className={`font-semibold ${textPrimary}`}>No departments recorded yet.</p>
-                  <p className={`text-xs ${textSecondary} mt-1`}>Click "Add Department" above to configure your campus structure.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {departmentsTree.map(dept => (
-                    <div key={dept.id} className={`${card} border rounded-2xl p-6 transition-all duration-200`}>
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-500 font-bold text-xs rounded-lg">
-                            {dept.code}
-                          </span>
-                          <h3 className={`text-lg font-bold mt-2 ${textPrimary}`}>{dept.name}</h3>
-                        </div>
-                        <div className={`text-right text-xs ${textSecondary}`}>
-                          <span className={`block font-semibold ${textPrimary}`}>{dept._count?.students || 0} Students</span>
-                          <span>{dept._count?.faculties || 0} Faculty • {dept._count?.courses || 0} Courses</span>
-                        </div>
-                      </div>
-
-                      <div className={`space-y-3 pt-3 border-t ${divider}`}>
-                        <div className="flex items-center justify-between">
-                          <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Classes & Sections</p>
-                          <span className="text-xs text-amber-500 font-medium">{dept.classes?.length || 0} Batches</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {dept.classes && dept.classes.length > 0 ? (
-                            dept.classes.map((c: any) => (
-                              <div key={c.id} className={`${cardInner} px-3 py-1.5 rounded-xl text-xs border`}>
-                                <span className={`font-semibold ${textPrimary}`}>{c.name}</span>
-                                <span className={`${textSecondary} ml-2`}>
-                                  ({c.sections?.map((s: any) => s.name).join(', ') || 'No sections'})
-                                </span>
-                              </div>
-                            ))
-                          ) : (
-                            <span className={`text-xs ${textSecondary} italic`}>No classes assigned to this branch yet.</span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between mt-4">
-                          <p className={`text-xs font-semibold uppercase tracking-wider ${textSecondary}`}>Registered Courses</p>
-                          <span className="text-xs text-purple-500 font-medium">{dept.courses?.length || 0} Courses</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {dept.courses && dept.courses.length > 0 ? (
-                            dept.courses.map((crs: any) => (
-                              <span key={crs.id} className={`px-2.5 py-1 rounded-lg ${cardInner} text-cyan-500 text-xs border font-mono`}>
-                                {crs.code} — {crs.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className={`text-xs ${textSecondary} italic`}>No active courses linked.</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
+            <DepartmentsTab
+              departmentsTree={departmentsTree}
+              setShowAddDeptModal={setShowAddDeptModal}
+              setShowAddCourseModal={setShowAddCourseModal}
+              setFormMsg={setFormMsg}
+              theme={themeClasses}
+            />
           )}
 
           {/* TAB 3: FACULTY DIRECTORY */}
@@ -816,13 +633,13 @@ const AdminDashboard: React.FC = () => {
                     type="text"
                     placeholder="Search by faculty name, employee ID, or email..."
                     value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                    onChange={e => { setSearchQuery(e.target.value); setFacultyPage(1); }}
                     className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm border ${inputCls}`}
                   />
                 </div>
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   <button
-                    onClick={() => setFacultyDeptFilter('ALL')}
+                    onClick={() => { setFacultyDeptFilter('ALL'); setFacultyPage(1); }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                       facultyDeptFilter === 'ALL'
                         ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
@@ -834,7 +651,7 @@ const AdminDashboard: React.FC = () => {
                   {facultyDepartments.map(dept => (
                     <button
                       key={dept}
-                      onClick={() => setFacultyDeptFilter(dept)}
+                      onClick={() => { setFacultyDeptFilter(dept); setFacultyPage(1); }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                         facultyDeptFilter === dept
                           ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
@@ -867,7 +684,7 @@ const AdminDashboard: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        filteredFaculty.map(f => (
+                        pagedFaculty.map(f => (
                           <tr key={f.id} className={`${trHover} transition`}>
                             <td className={`p-4 font-semibold ${textPrimary}`}>{f.user?.name}</td>
                             <td className="p-4 font-mono text-purple-500 text-xs font-bold">{f.employeeId}</td>
@@ -887,6 +704,13 @@ const AdminDashboard: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  totalItems={filteredFaculty.length}
+                  itemsPerPage={PAGE_SIZE_FACULTY}
+                  currentPage={facultyPage}
+                  onPageChange={setFacultyPage}
+                  itemLabel="faculty members"
+                />
               </div>
             </motion.div>
           )}
@@ -911,7 +735,7 @@ const AdminDashboard: React.FC = () => {
                       type="text"
                       placeholder="Search by student name, roll number, or email..."
                       value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
+                      onChange={e => { setSearchQuery(e.target.value); setStudentPage(1); }}
                       className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm border ${inputCls}`}
                     />
                   </div>
@@ -921,7 +745,7 @@ const AdminDashboard: React.FC = () => {
                       <GraduationCap className={`w-3.5 h-3.5 ${textSecondary}`} />
                       <select
                         value={studentBatchFilter}
-                        onChange={e => setStudentBatchFilter(e.target.value)}
+                        onChange={e => { setStudentBatchFilter(e.target.value); setStudentPage(1); }}
                         className={`px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
                       >
                         <option value="ALL">All Batches / Years</option>
@@ -938,7 +762,7 @@ const AdminDashboard: React.FC = () => {
                       <Layers className={`w-3.5 h-3.5 ${textSecondary}`} />
                       <select
                         value={studentSecFilter}
-                        onChange={e => setStudentSecFilter(e.target.value)}
+                        onChange={e => { setStudentSecFilter(e.target.value); setStudentPage(1); }}
                         className={`px-3 py-2 rounded-xl border text-xs font-semibold outline-none transition ${selectCls}`}
                       >
                         <option value="ALL">All Sections</option>
@@ -952,7 +776,7 @@ const AdminDashboard: React.FC = () => {
 
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                   <button
-                    onClick={() => setStudentDeptFilter('ALL')}
+                    onClick={() => { setStudentDeptFilter('ALL'); setStudentPage(1); }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                       studentDeptFilter === 'ALL'
                         ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -964,7 +788,7 @@ const AdminDashboard: React.FC = () => {
                   {studentDepartments.map(dept => (
                     <button
                       key={dept}
-                      onClick={() => setStudentDeptFilter(dept)}
+                      onClick={() => { setStudentDeptFilter(dept); setStudentPage(1); }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                         studentDeptFilter === dept
                           ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
@@ -996,7 +820,7 @@ const AdminDashboard: React.FC = () => {
                           </td>
                         </tr>
                       ) : (
-                        filteredStudents.map(s => (
+                        pagedStudents.map(s => (
                           <tr key={s.id} className={`${trHover} transition`}>
                             <td className="p-4">
                               <p className={`font-semibold ${textPrimary}`}>{s.user?.name}</p>
@@ -1018,6 +842,13 @@ const AdminDashboard: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  totalItems={filteredStudents.length}
+                  itemsPerPage={PAGE_SIZE_STUDENTS}
+                  currentPage={studentPage}
+                  onPageChange={setStudentPage}
+                  itemLabel="students"
+                />
               </div>
             </motion.div>
           )}
@@ -1039,7 +870,7 @@ const AdminDashboard: React.FC = () => {
               {/* Categorization Badges / Filters */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
-                  onClick={() => setLowSeverityFilter('ALL')}
+                  onClick={() => { setLowSeverityFilter('ALL'); setLowPage(1); }}
                   className={`p-4 rounded-xl text-left border transition-all ${
                     lowSeverityFilter === 'ALL'
                       ? 'border-amber-500 ring-2 ring-amber-500/20'
@@ -1052,7 +883,7 @@ const AdminDashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setLowSeverityFilter('CRITICAL')}
+                  onClick={() => { setLowSeverityFilter('CRITICAL'); setLowPage(1); }}
                   className={`p-4 rounded-xl text-left border transition-all ${
                     lowSeverityFilter === 'CRITICAL'
                       ? 'border-rose-500 ring-2 ring-rose-500/20'
@@ -1068,7 +899,7 @@ const AdminDashboard: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setLowSeverityFilter('WARNING')}
+                  onClick={() => { setLowSeverityFilter('WARNING'); setLowPage(1); }}
                   className={`p-4 rounded-xl text-left border transition-all ${
                     lowSeverityFilter === 'WARNING'
                       ? 'border-amber-500 ring-2 ring-amber-500/20'
@@ -1102,7 +933,7 @@ const AdminDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${divider}`}>
-                        {filteredLowStudents.map(s => {
+                        {pagedLowStudents.map(s => {
                           const isCritical = s.percentage < 60;
                           return (
                             <tr key={s.studentId} className={`${trHover} transition`}>
@@ -1148,6 +979,13 @@ const AdminDashboard: React.FC = () => {
                       </tbody>
                     </table>
                   </div>
+                  <Pagination
+                    totalItems={filteredLowStudents.length}
+                    itemsPerPage={PAGE_SIZE_LOW}
+                    currentPage={lowPage}
+                    onPageChange={setLowPage}
+                    itemLabel="defaulters"
+                  />
                 </div>
               )}
             </motion.div>
@@ -1165,7 +1003,7 @@ const AdminDashboard: React.FC = () => {
                 {/* Categorized Status Pills */}
                 <div className="flex items-center gap-1.5 bg-slate-800/20 p-1 rounded-xl border border-slate-700/20">
                   <button
-                    onClick={() => setCorrectionStatusFilter('ALL')}
+                    onClick={() => { setCorrectionStatusFilter('ALL'); setCorrectionPage(1); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       correctionStatusFilter === 'ALL'
                         ? 'bg-amber-500 text-white shadow-sm'
@@ -1175,7 +1013,7 @@ const AdminDashboard: React.FC = () => {
                     All ({corrections.length})
                   </button>
                   <button
-                    onClick={() => setCorrectionStatusFilter('PENDING')}
+                    onClick={() => { setCorrectionStatusFilter('PENDING'); setCorrectionPage(1); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       correctionStatusFilter === 'PENDING'
                         ? 'bg-amber-500 text-white shadow-sm'
@@ -1185,7 +1023,7 @@ const AdminDashboard: React.FC = () => {
                     Pending ({pendingCorrectionsCount})
                   </button>
                   <button
-                    onClick={() => setCorrectionStatusFilter('APPROVED')}
+                    onClick={() => { setCorrectionStatusFilter('APPROVED'); setCorrectionPage(1); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       correctionStatusFilter === 'APPROVED'
                         ? 'bg-emerald-600 text-white shadow-sm'
@@ -1195,7 +1033,7 @@ const AdminDashboard: React.FC = () => {
                     Approved ({approvedCorrectionsCount})
                   </button>
                   <button
-                    onClick={() => setCorrectionStatusFilter('REJECTED')}
+                    onClick={() => { setCorrectionStatusFilter('REJECTED'); setCorrectionPage(1); }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       correctionStatusFilter === 'REJECTED'
                         ? 'bg-rose-600 text-white shadow-sm'
@@ -1215,7 +1053,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredCorrections.map(c => (
+                  {pagedCorrections.map(c => (
                     <div key={c.id} className={`${card} border rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200`}>
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2 flex-wrap gap-y-1">
@@ -1256,6 +1094,13 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </div>
                   ))}
+                  <Pagination
+                    totalItems={filteredCorrections.length}
+                    itemsPerPage={PAGE_SIZE_CORRECTIONS}
+                    currentPage={correctionPage}
+                    onPageChange={setCorrectionPage}
+                    itemLabel="requests"
+                  />
                 </div>
               )}
             </motion.div>
@@ -1281,7 +1126,7 @@ const AdminDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Report Card 1: Attendance Audit */}
                 <div
-                  onClick={() => setReportType('attendance')}
+                  onClick={() => { setReportType('attendance'); setReportPage(1); }}
                   className={`cursor-pointer rounded-2xl p-5 border transition-all ${
                     reportType === 'attendance'
                       ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-md'
@@ -1303,7 +1148,7 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Report Card 2: Student Master */}
                 <div
-                  onClick={() => setReportType('students')}
+                  onClick={() => { setReportType('students'); setReportPage(1); }}
                   className={`cursor-pointer rounded-2xl p-5 border transition-all ${
                     reportType === 'students'
                       ? 'border-cyan-500 ring-2 ring-cyan-500/20 shadow-md'
@@ -1325,7 +1170,7 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Report Card 3: Defaulters */}
                 <div
-                  onClick={() => setReportType('defaulters')}
+                  onClick={() => { setReportType('defaulters'); setReportPage(1); }}
                   className={`cursor-pointer rounded-2xl p-5 border transition-all ${
                     reportType === 'defaulters'
                       ? 'border-rose-500 ring-2 ring-rose-500/20 shadow-md'
@@ -1347,7 +1192,7 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Report Card 4: Faculty Workload */}
                 <div
-                  onClick={() => setReportType('faculty')}
+                  onClick={() => { setReportType('faculty'); setReportPage(1); }}
                   className={`cursor-pointer rounded-2xl p-5 border transition-all ${
                     reportType === 'faculty'
                       ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-md'
@@ -1411,13 +1256,13 @@ const AdminDashboard: React.FC = () => {
                       type="text"
                       placeholder="Search within this report by name, roll number, or email..."
                       value={reportSearch}
-                      onChange={e => setReportSearch(e.target.value)}
+                      onChange={e => { setReportSearch(e.target.value); setReportPage(1); }}
                       className={`w-full rounded-xl pl-10 pr-4 py-2.5 text-sm border ${inputCls}`}
                     />
                   </div>
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                     <button
-                      onClick={() => setReportDeptFilter('ALL')}
+                      onClick={() => { setReportDeptFilter('ALL'); setReportPage(1); }}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                         reportDeptFilter === 'ALL'
                           ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
@@ -1429,7 +1274,7 @@ const AdminDashboard: React.FC = () => {
                     {studentDepartments.map(dept => (
                       <button
                         key={dept}
-                        onClick={() => setReportDeptFilter(dept)}
+                        onClick={() => { setReportDeptFilter(dept); setReportPage(1); }}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition border ${
                           reportDeptFilter === dept
                             ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
@@ -1444,7 +1289,7 @@ const AdminDashboard: React.FC = () => {
 
                 {/* Report Table 1: ATTENDANCE AUDIT */}
                 {reportType === 'attendance' && (
-                  <div className="overflow-x-auto rounded-xl border border-slate-700/30">
+                  <><div className="overflow-x-auto rounded-xl border border-slate-700/30">
                     <table className="w-full text-left text-sm">
                       <thead className={`${thead} uppercase text-xs`}>
                         <tr>
@@ -1464,7 +1309,7 @@ const AdminDashboard: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          filteredReportAudit.map(s => {
+                          pagedReportAudit.map(s => {
                             const isCritical = s.attendancePercentage < 60;
                             const isWarning = s.attendancePercentage >= 60 && s.attendancePercentage < 75;
                             return (
@@ -1483,22 +1328,17 @@ const AdminDashboard: React.FC = () => {
                                     <div className={`w-16 h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
                                       <div
                                         className={`h-full ${isCritical ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                        style={{ width: `${Math.min(s.attendancePercentage, 100)}%` }}
-                                      />
+                                        style={{ width: `${Math.min(s.attendancePercentage, 100)}%` }} />
                                     </div>
-                                    <span className={`font-extrabold text-xs ${
-                                      isCritical ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-emerald-500'
-                                    }`}>
+                                    <span className={`font-extrabold text-xs ${isCritical ? 'text-rose-500' : isWarning ? 'text-amber-500' : 'text-emerald-500'}`}>
                                       {s.attendancePercentage}%
                                     </span>
                                   </div>
                                 </td>
                                 <td className="p-3.5">
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                                    isCritical ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
-                                    isWarning ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                                    'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                  }`}>
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isCritical ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' :
+                                      isWarning ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                        'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
                                     {isCritical ? 'Critical Defaulter' : isWarning ? 'Warning (<75%)' : 'Satisfactory (>=75%)'}
                                   </span>
                                 </td>
@@ -1508,12 +1348,12 @@ const AdminDashboard: React.FC = () => {
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </div><Pagination totalItems={filteredReportAudit.length} itemsPerPage={PAGE_SIZE_REPORT} currentPage={reportPage} onPageChange={setReportPage} itemLabel="records" /></>
                 )}
 
                 {/* Report Table 2: STUDENT MASTER */}
                 {reportType === 'students' && (
-                  <div className="overflow-x-auto rounded-xl border border-slate-700/30">
+                  <><div className="overflow-x-auto rounded-xl border border-slate-700/30">
                     <table className="w-full text-left text-sm">
                       <thead className={`${thead} uppercase text-xs`}>
                         <tr>
@@ -1533,7 +1373,7 @@ const AdminDashboard: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          filteredReportStudents.map(s => (
+                          pagedReportStudents.map(s => (
                             <tr key={s.id} className={`${trHover} transition`}>
                               <td className={`p-3.5 font-semibold ${textPrimary}`}>{s.user?.name}</td>
                               <td className={`p-3.5 text-xs ${textSecondary}`}>{s.user?.email}</td>
@@ -1550,12 +1390,12 @@ const AdminDashboard: React.FC = () => {
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </div><Pagination totalItems={filteredReportStudents.length} itemsPerPage={PAGE_SIZE_REPORT} currentPage={reportPage} onPageChange={setReportPage} itemLabel="students" /></>
                 )}
 
                 {/* Report Table 3: DEFAULTERS */}
                 {reportType === 'defaulters' && (
-                  <div className="overflow-x-auto rounded-xl border border-slate-700/30">
+                  <><div className="overflow-x-auto rounded-xl border border-slate-700/30">
                     <table className="w-full text-left text-sm">
                       <thead className={`${thead} uppercase text-xs`}>
                         <tr>
@@ -1575,7 +1415,7 @@ const AdminDashboard: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          filteredReportDefaulters.map(s => {
+                          pagedReportDefaulters.map(s => {
                             const isCritical = s.percentage < 60;
                             return (
                               <tr key={s.studentId} className={`${trHover} transition`}>
@@ -1592,10 +1432,8 @@ const AdminDashboard: React.FC = () => {
                                   {s.percentage}%
                                 </td>
                                 <td className="p-3.5">
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                    isCritical ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                                  }`}>
-                                    {isCritical ? '🚨 Critical Action' : '⚠️ Warning Watchlist'}
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${isCritical ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
+                                    {isCritical ? 'Critical Action' : 'Warning Watchlist'}
                                   </span>
                                 </td>
                               </tr>
@@ -1604,12 +1442,12 @@ const AdminDashboard: React.FC = () => {
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </div><Pagination totalItems={filteredReportDefaulters.length} itemsPerPage={PAGE_SIZE_REPORT} currentPage={reportPage} onPageChange={setReportPage} itemLabel="defaulters" /></>
                 )}
 
                 {/* Report Table 4: FACULTY */}
                 {reportType === 'faculty' && (
-                  <div className="overflow-x-auto rounded-xl border border-slate-700/30">
+                  <><div className="overflow-x-auto rounded-xl border border-slate-700/30">
                     <table className="w-full text-left text-sm">
                       <thead className={`${thead} uppercase text-xs`}>
                         <tr>
@@ -1628,7 +1466,7 @@ const AdminDashboard: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          filteredReportFaculty.map(f => (
+                          pagedReportFaculty.map(f => (
                             <tr key={f.id} className={`${trHover} transition`}>
                               <td className={`p-3.5 font-semibold ${textPrimary}`}>{f.user?.name}</td>
                               <td className="p-3.5 font-mono text-purple-500 text-xs font-bold">{f.employeeId}</td>
@@ -1640,7 +1478,7 @@ const AdminDashboard: React.FC = () => {
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </div><Pagination totalItems={filteredReportFaculty.length} itemsPerPage={PAGE_SIZE_REPORT} currentPage={reportPage} onPageChange={setReportPage} itemLabel="faculty" /></>
                 )}
               </div>
             </motion.div>
